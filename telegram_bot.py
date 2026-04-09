@@ -6,9 +6,13 @@ API_KEY = "dckOcQjessIfeRLaXGCosdcMlxSyIyii"
 BOT_TOKEN = "8303834127:AAEDkDu6SXMBndJ1HwGcZ9-vidb5oN-nCLU"
 CHAT_ID = "855917320"
 
+# Множество для хранения ID уже обработанных заказов
+sent_orders = set()
+
 def check_orders():
+    global sent_orders
     url = f"{RETAIL_URL}/api/v5/orders"
-    params = {"apiKey": API_KEY, "limit": 20}
+    params = {"apiKey": API_KEY, "limit": 50}
     response = requests.get(url, params=params)
     
     if response.status_code != 200:
@@ -19,13 +23,17 @@ def check_orders():
     print(f"Найдено заказов: {len(orders)}")
     
     for order in orders:
+        order_id = order.get('externalId')
         total = sum(item.get("initialPrice", 0) * item.get("quantity", 1) 
                    for item in order.get("items", []))
-        if total > 1:  # порог 1 — для теста
-            msg = f"🔥 Новый заказ >1₸! Заказ №{order.get('externalId')} на сумму {total}₸"
+        
+        # Если сумма >50000 и ID ещё не отправляли
+        if total > 50000 and order_id not in sent_orders:
+            msg = f"🔥 Новый заказ >50000₸! Заказ №{order_id} на сумму {total} ₸"
             url_send = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
             requests.post(url_send, json={"chat_id": CHAT_ID, "text": msg})
             print(f"Отправлено: {msg}")
+            sent_orders.add(order_id)  # Запоминаем ID отправленного заказа
 
 if __name__ == "__main__":
     print("Бот запущен. Проверка каждую минуту...")
